@@ -1,0 +1,41 @@
+.container {
+  display: flex;
+  
+}
+
+.inputs {
+  width: 25vw;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: rgb(5, 107, 107);
+  gap: 50px;  
+  height: 100vh;
+  flex: 0 0 auto;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: 0;
+  font-family: "Roboto", sans-serif;
+}
+
+#present-graphs{
+  width: 75vw;
+  display: flex;
+  
+}
+
+#indicator-graph{
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#price-graph{
+min-width: 0;
+flex: 1 1 auto;
+}
+
+
