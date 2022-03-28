@@ -12,7 +12,11 @@ from plotly import tools
 import pickle
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
+from numpy import array
+import keras
+from keras import backend as K
 # import tensorflow
+
 
 
 # -----------------------------------------------------------------------------------------------------------------------
@@ -46,12 +50,20 @@ df['Year'] = df.index.year
 #   # print(predicted_value)
 #   prediction_data = prediction_data[1:]
 #   prediction_data.append(predicted_value[0][0])
-  
+
 #   i = i+1
 
 # print(pred);
 
- 
+K.clear_session()
+savedModel = keras.models.load_model('Save_Model', compile=False)
+
+
+def create_first_dataset(dataset, time_step=1, input_size=1):
+    a = []
+    for j in range(time_step):
+        a.append(dataset[j:(j+input_size), 0])
+    return array(a)
 
 
 # ------------------------------------------------------------------------------------------------------------------------
@@ -103,14 +115,14 @@ app.layout = html.Div(
 
                 html.Div([
                     html.Div([
-                    dcc.Graph(id='price-graph')
-                ], id="graphs-content"),
-                html.Div([
-                    # Indicator plot
-                    dcc.Graph(id='indicator-graph')
-                ], id="main-content")
-                ], id = 'present-graphs'),
-                
+                        dcc.Graph(id='price-graph')
+                    ], id="graphs-content"),
+                    html.Div([
+                        # Indicator plot
+                        dcc.Graph(id='indicator-graph')
+                    ], id="main-content")
+                ], id='present-graphs'),
+
                 html.Div([
                     # Forecast plot
                     dcc.Graph(id='forecast-graph')
@@ -118,7 +130,6 @@ app.layout = html.Div(
             ],
             className="content")
     ], className="container")
-
 
 
 @app.callback(
@@ -137,7 +148,7 @@ app.layout = html.Div(
 )
 def update_graphs(stock_code, start_date, end_date):
     ticker = yf.Ticker(stock_code)
-    
+
     df = ticker.history(period='max')
     df['Date'] = df.index
     df['Year'] = df.index.year
@@ -145,12 +156,61 @@ def update_graphs(stock_code, start_date, end_date):
     print(stock_code)
     print(start_date, end_date, end=' ')
     fig = px.line(df, x='Date', y='Close', range_x=[
-                start_date, end_date], title='Price of ' + stock_code, width=570, height=400)
+        start_date, end_date], title='Price of ' + stock_code, width=570, height=400)
 
     df['EWA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
-    fig2 = px.scatter(df,  x='Date', y='EWA_20', title="Exponential Moving Average vs Date", range_x=[start_date, end_date], width=570, height=400)
-        
-    fig3 = px.line()
+    fig2 = px.scatter(df,  x='Date', y='EWA_20', title="Exponential Moving Average vs Date", range_x=[
+                      start_date, end_date], width=570, height=400)
+
+    
+
+    ticker = yf.Ticker(stock_code)
+    df = ticker.history(period='max')
+    df1 = df.reset_index()['Close']
+    df2 = pd.DataFrame(df1)
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    df1 = scaler.fit_transform(np.array(df1).reshape(-1, 1))
+
+
+    NumberOfFutureDays = 50
+
+    x_input = df1[-149:]
+    temp_list = create_first_dataset(x_input, 100, 50)
+    temp_list = temp_list.reshape(1, 100, 50)
+
+    lst_output = []
+    n_steps = 100
+    i = 0
+
+    temp = temp_list
+
+    while(i < NumberOfFutureDays):
+        yhat = savedModel.predict(temp, verbose=0)
+        lst_output.extend(yhat.tolist())
+        new_input = temp[0, -1, 1:]
+        new_input = np.append(new_input, yhat)
+        temp = temp[0, 1:]
+        temp = np.append(temp, [new_input], axis=0)
+        temp = temp.reshape(1, temp.shape[0], temp.shape[1])
+        i = i+1
+
+    print(lst_output)
+    print(len(lst_output))
+
+    future_p = [i[0] for i in scaler.inverse_transform(lst_output)]
+    print(future_p)
+    print(len(future_p))
+
+    future_pred = pd.DataFrame(df2)
+    for i in range(NumberOfFutureDays):
+        future_pred.loc[future_pred.shape[0]] = [None]
+    print(future_pred)
+    print((len(df2)))
+    abcd = future_pred[(len(df2)):]
+    abcd['predictions'] = future_p
+
+    fig3 = px.line(abcd, y='predictions', title="Prediction of " + stock_code)
 
     return fig, fig2, fig3
 
