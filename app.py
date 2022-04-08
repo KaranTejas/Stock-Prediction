@@ -1,5 +1,6 @@
 from datetime import date
 from pydoc import classname
+from tracemalloc import start
 import dash
 from dash import html, dcc
 import matplotlib
@@ -72,9 +73,10 @@ app.layout = html.Div(
     [
         html.Div(
             [
-                html.P("Welcome to the Stock Dash App!", className="start"),
+                html.P("Welcome to the IE Project EXPO!", className="start"),
                 html.Div([
                     # stock code input
+                    html.P("Stock Code: ", className="start"),
                     dcc.Input(id='stock-input', value='AAPL', type='text')
                 ]),
                 html.Div([
@@ -89,9 +91,9 @@ app.layout = html.Div(
                 ]),
                 html.Div([
                     # Stock price button
-                    html.Button(id='submit-button',  children='Stock Price'),
+                    # html.Button(id='submit-button',  children='Stock Price'),
                     # Indicators button
-                    html.Button(id='indicator-button',  children='Indicators'),
+                    # html.Button(id='indicator-button',  children='Indicators'),
                     # Number of days of forecast input
                     # add a linebreak
                     html.Br(),
@@ -144,14 +146,17 @@ app.layout = html.Div(
         Input(component_id='date-picker-range',
               component_property='start_date'),
         Input(component_id='date-picker-range', component_property='end_date'),
+        Input(component_id='forecast-input', component_property='value')
     ]
 )
-def update_graphs(stock_code, start_date, end_date):
+def update_graphs(stock_code, start_date, end_date, forecast_days):
     ticker = yf.Ticker(stock_code)
 
     df = ticker.history(period='max')
     df['Date'] = df.index
     df['Year'] = df.index.year
+
+    
 
     print(stock_code)
     print(start_date, end_date, end=' ')
@@ -166,14 +171,14 @@ def update_graphs(stock_code, start_date, end_date):
 
     ticker = yf.Ticker(stock_code)
     df = ticker.history(period='max')
-    df1 = df.reset_index()['Close']
+    df1 = df['Close']
     df2 = pd.DataFrame(df1)
-
+    
     scaler = MinMaxScaler(feature_range=(0, 1))
     df1 = scaler.fit_transform(np.array(df1).reshape(-1, 1))
 
 
-    NumberOfFutureDays = 50
+    NumberOfFutureDays = forecast_days
 
     x_input = df1[-149:]
     temp_list = create_first_dataset(x_input, 100, 50)
@@ -208,9 +213,11 @@ def update_graphs(stock_code, start_date, end_date):
     print(future_pred)
     print((len(df2)))
     abcd = future_pred[(len(df2)):]
+    
     abcd['predictions'] = future_p
 
-    fig3 = px.line(abcd, y='predictions', title="Prediction of " + stock_code)
+    fig3 = px.line(abcd.reset_index(), y='predictions', title="Price prediction for the stock: " + stock_code)
+    print(future_pred.tail())
 
     return fig, fig2, fig3
 
